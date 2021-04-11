@@ -12,8 +12,6 @@ from keras.models import load_model
 
 model = load_model('./cnn_model.h5')
 
-v = 0
-
 
 def find_puzzle(imgPath, debug=False):
     img = cv2.imread(imgPath, cv2.CV_8UC1)
@@ -37,11 +35,6 @@ def find_puzzle(imgPath, debug=False):
     if puzzleCnt is None:
         raise Exception(("Could not find Sudoku puzzle outline. "
                          "Try debugging your thresholding and contour steps."))
-
-    # output = img.copy()
-    # cv2.drawContours(output, [puzzleCnt], -1, (0, 255, 0), 2)
-    # cv2.imshow("Puzzle Outline", output)
-    # cv2.waitKey(0)
     puzzle = four_point_transform(img, puzzleCnt.reshape(4, 2))
     warped = four_point_transform(gray, puzzleCnt.reshape(4, 2))
     return puzzle, warped
@@ -64,7 +57,7 @@ def extract_digit(cell):
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     if len(cnts) == 0:
-        return 'X'
+        return 0
     c = max(cnts, key=cv2.contourArea)
     mask = np.zeros(thresh.shape, dtype="uint8")
     cv2.drawContours(mask, [c], -1, 255, -1)
@@ -73,9 +66,14 @@ def extract_digit(cell):
     if percentFilled < 0.03:
         return 0
     digit = cv2.bitwise_and(thresh, thresh, mask=mask)
-    digit = cv2.resize(digit, (28, 28), interpolation=cv2.INTER_CUBIC)
-    cv2.imwrite(r'./digit_data/temp_' + str(random.randint(100,999)) + '.jpg', digit)
-    return 1
+    cv2.imwrite('tmp.jpg', digit)
+    img = cv2.imread('tmp.jpg', 0)
+    os.remove('tmp.jpg')
+    img = cv2.resize(digit, (28, 28), interpolation=cv2.INTER_CUBIC)
+    X = img
+    X = X.reshape(-1, 28, 28, 1)
+    res = model.predict(X)
+    return np.argmax(res[0])
 
 
 def pre_process_image(img, skip_dilate=False):
@@ -89,28 +87,18 @@ def pre_process_image(img, skip_dilate=False):
 
 
 def main():
-    # directory = r'./sudoku_out/'
-    # # output = r'./sudoku_out/'
-    # # i = 0
-    # for filename in os.listdir(directory):
-    #     if filename.endswith(".png"):
-    #         f = os.path.join(directory, filename)
-    #         print(f)
-    #         puzzle, warped = find_puzzle(f)
-            # i = i+1
-    # for i in range(15, 16, 1):
-    #     print('./sudoku/sudoku'+str(i)+'.png')
-    #     puzzle, warped = find_puzzle('./sudoku/sudoku'+str(i)+'.png')
-    puzzle, warped = find_puzzle('./sudoku9.PNG')
+    puzzle, warped = find_puzzle('./sudoku_out/0.png')
     n = 9
-    c = defaultdict(dict)
+    t = []
     cells = imgcrop(puzzle, n, n)
     for i in range(0, n):
+        r = []
         for j in range(0, n):
-            c[i][j] = extract_digit(cells[i][j])
-            # for i in range(0, n):
-            #     print(c[i])
-
+            r = np.append(r, extract_digit(cells[i][j]))
+        t = np.append(t, r)
+    r = t.reshape(9, 9)
+    r = r.astype(int)
+    print(r)
 
 if __name__ == '__main__':
     main()
