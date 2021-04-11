@@ -87,7 +87,7 @@ def pre_process_image(img, skip_dilate=False):
 
 
 def main():
-    puzzle, warped = find_puzzle('./sudoku_out/0.png')
+    puzzle, warped = find_puzzle('./sudoku9.PNG')
     n = 9
     t = []
     cells = imgcrop(puzzle, n, n)
